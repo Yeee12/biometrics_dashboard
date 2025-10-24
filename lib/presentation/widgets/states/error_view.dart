@@ -92,7 +92,6 @@ class ErrorView extends StatelessWidget {
 
             SizedBox(height: isSmallScreen ? 24 : 32),
 
-            // Retry button
             ElevatedButton.icon(
               onPressed: isRetrying ? null : onRetry,
               icon: isRetrying
@@ -128,7 +127,6 @@ class ErrorView extends StatelessWidget {
 
             SizedBox(height: isSmallScreen ? 12 : 16),
 
-            // Help text
             TextButton.icon(
               onPressed: () => _showErrorDetails(context),
               icon: Icon(
@@ -151,7 +149,6 @@ class ErrorView extends StatelessWidget {
   }
 
   String _formatErrorMessage(String error) {
-    // Extract meaningful error messages
     if (error.contains('Connection timeout') || error.contains('Network error')) {
       return 'Unable to connect to the server. Please check your internet connection and try again.';
     } else if (error.contains('Server error')) {
