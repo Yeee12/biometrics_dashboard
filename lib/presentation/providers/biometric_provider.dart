@@ -15,6 +15,7 @@ final biometricRepositoryProvider = Provider<BiometricRepository>((ref) {
 final journalRepositoryProvider = Provider<JournalRepository>((ref) {
   return JournalRepository();
 });
+
 class BiometricState {
   final List<BiometricData> rawData;
   final List<BiometricData> filteredData;
@@ -24,7 +25,7 @@ class BiometricState {
   final bool isLoading;
   final String? error;
   final bool useLargeDataset;
-  final bool isRetrying; // NEW
+  final bool isRetrying;
 
   const BiometricState({
     this.rawData = const [],
@@ -34,7 +35,7 @@ class BiometricState {
     this.hoveredDate,
     this.isLoading = false,
     this.error,
-    this.isRetrying = false, // NEW
+    this.isRetrying = false,
     this.useLargeDataset = false,
   });
 
@@ -48,7 +49,7 @@ class BiometricState {
     String? error,
     bool? useLargeDataset,
     bool clearHover = false,
-    bool? isRetrying, // NEW
+    bool? isRetrying,
     bool clearError = false,
   }) {
     return BiometricState(
@@ -58,7 +59,7 @@ class BiometricState {
       selectedRange: selectedRange ?? this.selectedRange,
       hoveredDate: clearHover ? null : (hoveredDate ?? this.hoveredDate),
       isLoading: isLoading ?? this.isLoading,
-      isRetrying: isRetrying ?? this.isRetrying, // NEW
+      isRetrying: isRetrying ?? this.isRetrying,
       error: clearError ? null : (error ?? this.error),
       useLargeDataset: useLargeDataset ?? this.useLargeDataset,
     );
@@ -68,6 +69,8 @@ class BiometricState {
 class BiometricNotifier extends StateNotifier<BiometricState> {
   final BiometricRepository _biometricRepository;
   final JournalRepository _journalRepository;
+
+  bool _hasSimulatedError = false;
 
   BiometricNotifier(
       this._biometricRepository,
@@ -80,6 +83,13 @@ class BiometricNotifier extends StateNotifier<BiometricState> {
     state = state.copyWith(isLoading: true, clearError: true);
 
     try {
+      // Simulate a network error only on the first load
+      if (!_hasSimulatedError) {
+        _hasSimulatedError = true;
+        await Future.delayed(const Duration(seconds: 1)); // mimic delay
+        throw Exception('Simulated network error: Connection timeout');
+      }
+
       final results = await Future.wait([
         state.useLargeDataset
             ? _biometricRepository.loadLargeDataset()
@@ -91,7 +101,8 @@ class BiometricNotifier extends StateNotifier<BiometricState> {
       final rawJournals = results[1] as List<JournalEntry>;
 
       final validatedData = DataValidator.validateBiometricData(rawData);
-      final validatedJournals = DataValidator.validateJournalEntries(rawJournals);
+      final validatedJournals =
+      DataValidator.validateJournalEntries(rawJournals);
 
       if (validatedData.isEmpty) {
         throw Exception('No valid biometric data available after validation');
@@ -105,8 +116,11 @@ class BiometricNotifier extends StateNotifier<BiometricState> {
         journals: validatedJournals,
         isLoading: false,
       );
-      final dataLoss = ((rawData.length - validatedData.length) / rawData.length * 100);
+
+      final dataLoss =
+      ((rawData.length - validatedData.length) / rawData.length * 100);
       if (dataLoss > 10) {
+        // Optional warning log
       }
 
     } catch (e) {
@@ -125,7 +139,6 @@ class BiometricNotifier extends StateNotifier<BiometricState> {
       clearHover: true,
     );
   }
-
 
   void setHoveredDate(String? date) {
     if (date == null) {
@@ -150,6 +163,7 @@ class BiometricNotifier extends StateNotifier<BiometricState> {
 
     state = state.copyWith(isRetrying: false);
   }
+
   List<BiometricData> _filterByRange(
       List<BiometricData> data,
       TimeRange range,
@@ -161,7 +175,6 @@ class BiometricNotifier extends StateNotifier<BiometricState> {
 
     return data.where((d) => d.dateTime.isAfter(cutoffDate)).toList();
   }
-
 
   List<BiometricData> getDecimatedHRV() {
     if (!DataDecimator.shouldDecimate(state.filteredData.length)) {
@@ -193,7 +206,6 @@ class BiometricNotifier extends StateNotifier<BiometricState> {
     );
   }
 
-
   List<JournalEntry> getFilteredJournals() {
     if (state.filteredData.isEmpty || state.journals.isEmpty) {
       return [];
@@ -201,8 +213,6 @@ class BiometricNotifier extends StateNotifier<BiometricState> {
 
     final firstDate = state.filteredData.first.dateTime;
     final lastDate = state.filteredData.last.dateTime;
-    for (var j in state.journals) {
-    }
 
     final filtered = state.journals.where((journal) {
       final journalDate = journal.dateTime;
@@ -213,7 +223,6 @@ class BiometricNotifier extends StateNotifier<BiometricState> {
     return filtered;
   }
 }
-
 
 final biometricProvider =
 StateNotifierProvider<BiometricNotifier, BiometricState>((ref) {
